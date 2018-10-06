@@ -412,6 +412,7 @@ func create_material(slot, attachment):
 		return materials_cache[image.texture]
 	var mat = SpatialMaterial.new()
 	mat.flags_unshaded = true
+	mat.flags_transparent = true
 	mat.albedo_texture = image.texture
 	materials_cache[image.texture] = mat
 	return mat
