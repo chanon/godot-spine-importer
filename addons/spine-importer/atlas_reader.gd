@@ -117,16 +117,11 @@ func get_rect(data):
 func get_rotate(data):
 	return data['rotate'] == 'true'
 
-static func import(atlas_path, target_path):
-	var atlas_reader = new()
-	print("Importing atlas ", atlas_path, " => ", target_path)
-	return atlas_reader.from(atlas_path, target_path)
-	
 class AtlasImage:
 	extends Reference
 	
-	var name = "unnamed"
-	var rect = Rect2()
+	var name: = "unnamed"
+	var rect: = Rect2()
 	var texture = null
-	var rotate = false
+	var rotate: = false
 

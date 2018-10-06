@@ -33,36 +33,38 @@
 tool
 extends Node
 
-const AtlasReader = preload("atlas_reader.gd")
+const AtlasReader: = preload("res://addons/spine-importer/atlas_reader.gd")
+const SpineSkeleton: = preload("res://addons/spine-importer/skeleton.gd")
 
 var atlas_path = null
 var json_pathes = null
 var target_path = null
 
-var import_deform = false
-var images = {}
-var slots = {}
-var bones = {}
-var root
-var viewport
-var skeleton
-var scene_3d
-var data
+var import_deform: = false
+var images: = {}
+var slots: = {}
+var bones: = {}
+var root: Node2D
+var viewport: Viewport
+var skeleton: SpineSkeleton
+var scene_3d: Spatial
+var data: Dictionary
 var current_bone_index
 var current_slot
 var current_attachment
 
 	
 func import():
-	images = AtlasReader.import(atlas_path, target_path)
+	var atlas_reader = AtlasReader.new()
+	images = atlas_reader.from(atlas_path, target_path)
 	
-	var f = File.new()
+	var f: = File.new()
 	for source_file in json_pathes:
+		print("source file %s: " % source_file)
 		f.open(source_file, File.READ)
-		data = {}
+		data = JSON.parse( f.get_as_text() ).result
 		bones = {}
 		slots = {}
-		data.parse_json(f.get_as_text())
 		var order = 0
 		
 		for slot in data["slots"]:
@@ -87,29 +89,28 @@ func create_template():
 	root.add_child(viewport)
 	viewport.set_owner(root)
 	viewport.set_name("viewport")
-	viewport.set_as_render_target(true)
-	viewport.set_rect(Rect2(0, 0, 512, 512))
+	viewport.set_size_override(true, Vector2(512, 512))
 	viewport.set_script(preload("viewport.gd"))
 	scene_3d = Spatial.new()
 	scene_3d.set_name("scene")
 	viewport.add_child(scene_3d)
 	scene_3d.set_owner(root)
-	var camera = Camera.new()
+	var camera: = Camera.new()
 	camera.set_orthogonal(5, 0.1, 20)
 	camera.set_name("camera")
 	scene_3d.add_child(camera)
 	camera.translate(Vector3(0, 0, 10))
 	camera.set_owner(root)
 	camera.make_current()
-	var sprite = ViewportSprite.new()
+	var sprite: = Sprite.new()
 	root.add_child(sprite)
 	sprite.set_name("sprite")
 	sprite.set_owner(root)
-	sprite.set_viewport_path(sprite.get_path_to(viewport))
+	sprite.texture = viewport.get_texture()
 	
 func import_skeleton():
 	var bones = {}
-	skeleton = preload("skeleton.gd").new()
+	skeleton = SpineSkeleton.new()
 	scene_3d.add_child(skeleton)
 	skeleton.set_owner(root)
 	var idx = 0
@@ -157,7 +158,7 @@ func import_skeleton():
 	
 	var scene = PackedScene.new()
 	scene.pack(skeleton)
-	ResourceSaver.save(target_path+"skeleton.tscn", scene)
+	ResourceSaver.save( target_path+"/skeleton.tscn", scene)
 		
 func attachment_binded_to_single_bone(slot, attachment):
 	var a = data["skins"]["default"][slot][attachment]
@@ -182,7 +183,7 @@ func import_meshes():
 			current_attachment = skin_name
 			if !images.has(skin_name):
 				continue
-			var image = images[skin_name]
+			var image: AtlasReader.AtlasImage = images[skin_name]
 
 			var mesh = create_mesh(data["skins"]["default"][slot_name][skin_name], image)
 			if !mesh:
@@ -204,7 +205,7 @@ func import_meshes():
 				mesh_instance.set_skeleton_path("../..")
 
 			
-func create_mesh(data, image):
+func create_mesh(data, image: AtlasReader.AtlasImage):
 	if data.has("type") && data["type"] == "mesh":
 		if data["vertices"].size() > data["uvs"].size():
 			return create_weight_mesh(data, image)
@@ -213,11 +214,11 @@ func create_mesh(data, image):
 	else:
 		return create_simple_mesh(data, image)
 			
-func create_static_mesh(data, image):
+func create_static_mesh(data, image: AtlasReader.AtlasImage):
 	var atlas = image.texture
-	var u_min = image.rect.pos.x / float(atlas.get_width())
+	var u_min = image.rect.position.x / float(atlas.get_width())
 	var u_max = image.rect.end.x / float(atlas.get_width())
-	var v_min = image.rect.pos.y / float(atlas.get_height())
+	var v_min = image.rect.position.y / float(atlas.get_height())
 	var v_max = image.end.y / float(atlas.get_height())
 	var tr = Transform()#skeleton.get_bone_global_pose(current_bone_index)
 
@@ -272,11 +273,11 @@ func create_static_mesh(data, image):
 	
 	
 	
-func create_weight_mesh(data, image):
+func create_weight_mesh(data, image: AtlasReader.AtlasImage):
 	var atlas = image.texture
-	var u_min = image.rect.pos.x / float(atlas.get_width())
+	var u_min = image.rect.position.x / float(atlas.get_width())
 	var u_max = image.rect.end.x / float(atlas.get_width())
-	var v_min = image.rect.pos.y / float(atlas.get_height())
+	var v_min = image.rect.position.y / float(atlas.get_height())
 	var v_max = image.rect.end.y / float(atlas.get_height())
 	
 	var vertices = []
@@ -353,14 +354,14 @@ func create_weight_mesh(data, image):
 
 func sort_weights(one, two):
 	return one["weight"] > two["weight"]
-func create_simple_mesh(data, image):
+func create_simple_mesh(data, image: AtlasReader.AtlasImage):
 	#return null
 	if !data.has("width"):
 		return null
 	var atlas = image.texture
-	var u_min = image.rect.pos.x / float(atlas.get_width())
+	var u_min = image.rect.position.x / float(atlas.get_width())
 	var u_max = image.rect.end.x / float(atlas.get_width())
-	var v_min = image.rect.pos.y / float(atlas.get_height())
+	var v_min = image.rect.position.y / float(atlas.get_height())
 	var v_max = image.rect.end.y / float(atlas.get_height())
 	var w = data["width"]*0.01 * 0.5
 	var h = data["height"]*0.01 * 0.5
@@ -406,14 +407,12 @@ func create_simple_mesh(data, image):
 
 var materials_cache = {}
 func create_material(slot, attachment):
-	var image = images[attachment]
+	var image: AtlasReader.AtlasImage = images[attachment]
 	if materials_cache.has(image.texture):
 		return materials_cache[image.texture]
-	var mat = FixedMaterial.new()
-	mat.set_flag(Material.FLAG_UNSHADED, true)
-	#mat.set_flag(Material.FLAG_DOUBLE_SIDED, true)
-	mat.set_fixed_flag(FixedMaterial.FLAG_USE_ALPHA, true)
-	mat.set_texture(FixedMaterial.PARAM_DIFFUSE, image.texture)
+	var mat = SpatialMaterial.new()
+	mat.flags_unshaded = true
+	mat.albedo_texture = image.texture
 	materials_cache[image.texture] = mat
 	return mat
 	
@@ -583,13 +582,13 @@ class Vertex:
 	extends Reference
 	var pos = Vector3()
 	var uv = Vector2()
-	var bones = IntArray()
-	var weights = FloatArray()
+	var bones = PoolIntArray()
+	var weights = PoolRealArray()
 	
 class MeshTool:
 	extends Reference
 	var verts = []
-	var indices = IntArray()
+	var indices = PoolIntArray()
 	var last_uv
 	var last_bones
 	var last_weights
@@ -618,9 +617,9 @@ class MeshTool:
 	func add_uv(uv):
 		last_uv = uv
 	func add_bones(bones):
-		last_bones = IntArray(bones)
+		last_bones = PoolIntArray(bones)
 	func add_weights(weights):
-		last_weights = FloatArray(weights)
+		last_weights = PoolRealArray(weights)
 	func deform(name):
 		deforms.append([])
 		deform_names.append(name)
@@ -628,7 +627,7 @@ class MeshTool:
 	func index():
 		var new_verts = []
 		var index_map = {}
-		indices = IntArray()
+		indices = PoolIntArray()
 		var old_idx = 0
 		var new_deforms = []
 		for deform in deforms:
@@ -650,10 +649,10 @@ class MeshTool:
 			
 	func build_mesh():
 		var mesh = Mesh.new()
-		var vert_array = Vector3Array()
-		var uvs_array = Vector2Array()
-		var bones_array = FloatArray()
-		var weights_array = FloatArray()
+		var vert_array = PoolVector3Array()
+		var uvs_array = PoolVector2Array()
+		var bones_array = PoolRealArray()
+		var weights_array = PoolRealArray()
 		for vert in verts:
 			vert_array.append(vert.pos)
 			uvs_array.append(vert.uv)
@@ -670,8 +669,8 @@ class MeshTool:
 		
 		var deforms_array = []
 		for deform in deforms:
-			var deform_vert_array = Vector3Array()
-			var deform_uv_array = Vector2Array()
+			var deform_vert_array = PoolVector3Array()
+			var deform_uv_array = PoolVector2Array()
 			for deform_vert in deform:
 				deform_vert_array.append(deform_vert.pos)
 				deform_uv_array.append(deform_vert.uv)

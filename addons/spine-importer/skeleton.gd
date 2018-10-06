@@ -30,14 +30,11 @@
 # 
 # ************************************************************************
 
- 
-
 tool
 extends Skeleton
 
-
-export var bind_bones = IntArray()
-export var bind_nodes = StringArray()
+export var bind_bones = PoolIntArray()
+export var bind_nodes = PoolStringArray()
 
 func _ready():
 	for idx in range(bind_bones.size()):
@@ -47,5 +44,3 @@ func bind_child_node_to_bone(bone_idx, node):
 	bind_bones.append(bone_idx)
 	bind_nodes.append(str(get_path_to(node)))
 	.bind_child_node_to_bone(bone_idx, node)
-
-
